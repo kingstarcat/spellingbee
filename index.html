@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Spelling Bee</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { font-family: Arial, Helvetica, sans-serif; color: #202020; background: #fff; }
+    body { margin: 0; }
+    button, input { font: inherit; }
+    button { color: inherit; cursor: pointer; touch-action: manipulation; }
+    button:focus-visible, summary:focus-visible, input:focus-visible { outline: 3px solid #956600; outline-offset: 5px; }
+    main { max-width: 1050px; margin: auto; padding: 32px 30px 24px; }
+    .titlebar { border-bottom: 1px solid #222; padding-bottom: 22px; }
+    h1 { font-family: Georgia, serif; font-size: clamp(32px, 5vw, 42px); margin: 0 0 8px; letter-spacing: -1px; }
+    .date { margin: 0; font-family: Georgia, serif; font-size: 20px; }
+    .toolbar { display: flex; justify-content: flex-end; padding: 15px 0; border-bottom: 1px solid #ddd; }
+    details { max-width: 550px; line-height: 1.6; font-size: 14px; }
+    summary { cursor: pointer; font-weight: bold; }
+    .game { display: grid; grid-template-columns: 1fr 1fr; gap: 55px; padding: 35px 0 45px; align-items: start; }
+    .play { text-align: center; padding-top: 12px; }
+    .message { min-height: 32px; margin: 0 0 10px; font-size: 15px; font-weight: bold; }
+    .entry-label { display: block; font-size: 12px; color: #777; margin-bottom: 8px; }
+    #word { width: 100%; max-width: 365px; border: 0; border-radius: 0; background: #fff; color: #222; text-align: center; text-transform: uppercase; font-size: 32px; font-weight: bold; letter-spacing: 2px; padding: 6px; caret-color: #d6a000; }
+    #word::placeholder { color: #bbb; font-size: 24px; letter-spacing: 0; font-weight: normal; text-transform: none; }
+    .hive { position: relative; width: 290px; height: 274px; margin: 27px auto 22px; }
+    .hive-cell { position: absolute; width: 90px; height: 80px; border: none; background: #e9e9e9; clip-path: polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%); font-size: 30px; font-weight: bold; text-transform: uppercase; }
+    .hive-cell:hover { background: #d9d9d9; }
+    .hive-cell:active { transform: scale(.94); }
+    .hive-cell:focus-visible { background: #d4d4d4; outline: none; box-shadow: inset 0 0 0 5px #865900; }
+    .hive-cell.center { background: #f7da21; left: 100px; top: 97px; }
+    .hive-cell.center:focus-visible { background: #e4c400; }
+    .hive-cell:nth-child(2) { left: 100px; top: 11px; }
+    .hive-cell:nth-child(3) { left: 174px; top: 54px; }
+    .hive-cell:nth-child(4) { left: 174px; top: 140px; }
+    .hive-cell:nth-child(5) { left: 100px; top: 183px; }
+    .hive-cell:nth-child(6) { left: 26px; top: 140px; }
+    .hive-cell:nth-child(7) { left: 26px; top: 54px; }
+    .controls { display: flex; justify-content: center; gap: 12px; }
+    .controls button { min-height: 46px; border: 1px solid #ccc; border-radius: 30px; background: white; padding: 10px 21px; }
+    .controls button:hover { background: #f5f5f5; }
+    #shuffle { font-size: 22px; padding: 7px 17px; }
+    .scoreline { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 17px; font-size: 15px; }
+    #rank { font-weight: bold; }
+    #score { display: inline-block; background: #f7da21; padding: 8px 12px; border-radius: 25px; min-width: 38px; text-align: center; font-weight: bold; }
+    progress { width: 100%; height: 8px; accent-color: #dfbc00; display: block; }
+    .target { color: #666; font-size: 12px; margin: 10px 0 22px; }
+    .wordbox { border: 1px solid #ddd; border-radius: 7px; padding: 22px; min-height: 360px; }
+    .wordbox h2 { font-size: 15px; font-weight: normal; margin: 0 0 20px; }
+    #found { list-style: none; padding: 0; margin: 0; columns: 2; column-gap: 28px; }
+    #found li { border-bottom: 1px solid #eee; padding: 8px 0; break-inside: avoid; font-size: 15px; text-transform: capitalize; }
+    #found li.pangram { font-weight: bold; }
+    .empty { color: #888; line-height: 1.7; font-size: 14px; }
+    @media (max-width: 680px) {
+      main { padding: 24px 20px; }
+      .game { grid-template-columns: 1fr; gap: 32px; padding-top: 18px; }
+      .wordbox { min-height: 160px; }
+      .play { padding-top: 0; }
+      .hive { margin-top: 20px; margin-bottom: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="titlebar"><h1>Spelling Bee</h1><p class="date" id="date"></p></div>
+    <div class="toolbar"><details><summary>How to play</summary><p>Make words of at least four letters. Every word must contain the yellow center letter. Letters can be used more than once.</p><p>Four-letter words earn 1 point; longer words earn 1 point per letter. A pangram uses all seven letters and earns 7 extra points.</p><p>Type or tap the letters. Press Enter to submit, Backspace to delete, or Escape to clear.</p></details></div>
+    <div class="game">
+      <section class="play" aria-label="Word entry">
+        <p class="message" id="message" role="status" aria-live="polite"></p>
+        <form id="word-form" autocomplete="off">
+          <label class="entry-label" for="word">YOUR WORD</label>
+          <input id="word" name="word" type="text" placeholder="Type or tap" aria-describedby="message" autocapitalize="none" spellcheck="false" autocomplete="off" autocorrect="off">
+          <div class="hive" id="hive" role="group" aria-label="Puzzle letters"></div>
+          <div class="controls"><button id="delete" type="button">Delete</button><button id="shuffle" type="button" aria-label="Shuffle outer letters" title="Shuffle outer letters">⟳</button><button type="submit">Enter</button></div>
+        </form>
+      </section>
+      <section aria-label="Your progress">
+        <p class="scoreline"><span id="rank">Beginner</span><span><span id="score">0</span> points</span></p>
+        <progress id="progress" value="0" max="1" aria-label="Points earned"></progress>
+        <p class="target" id="target"></p>
+        <div class="wordbox"><h2 id="word-count">You have found 0 words</h2><p class="empty" id="empty">Your words will appear here.</p><ul id="found" aria-label="Found words"></ul></div>
+      </section>
+    </div>
+    <noscript>Enable JavaScript to play.</noscript>
+  </main>
+  <script type="application/json" id="puzzle-data">{"date": "2026-11-12", "centerLetter": "t", "outerLetters": ["c", "d", "e", "h", "o", "u"], "answers": ["touched", "chute", "coot", "cote", "couth", "cute", "cutout", "decoct", "decocted", "deduct", "deducted", "detect", "detected", "doeth", "dote", "doted", "doth", "dotted", "duct", "ducted", "duet", "duetted", "etch", "etched", "etude", "hoot", "hooted", "hutch", "octet", "outdo", "outed", "tech", "teed", "teeth", "teethe", "teethed", "thee", "thou", "thud", "thudded", "toed", "toot", "tooted", "tooth", "toothed", "tote", "toted", "touch", "touche", "tout", "touted", "tutee", "tutted", "tutu"], "pangrams": ["touched"]}</script>
+  <script>
+    'use strict';
+    const puzzle = JSON.parse(document.getElementById('puzzle-data').textContent);
+    const answers = new Set(puzzle.answers);
+    const pangrams = new Set(puzzle.pangrams);
+    const found = new Set();
+    const storageKey = 'daily-hive:' + puzzle.date + ':' + puzzle.centerLetter + puzzle.outerLetters.slice().sort().join('');
+    const input = document.getElementById('word');
+    const message = document.getElementById('message');
+    const outerLetters = puzzle.outerLetters.slice();
+    const total = [...answers].reduce((sum, word) => sum + scoreWord(word), 0);
+
+    function scoreWord(word) {
+      return (word.length === 4 ? 1 : word.length) + (pangrams.has(word) ? 7 : 0);
+    }
+
+    function checkWord(word) {
+      if (word.length < 4) return 'Too short';
+      if (!word.includes(puzzle.centerLetter)) return 'Missing center letter';
+      if ([...word].some(letter => ![puzzle.centerLetter, ...puzzle.outerLetters].includes(letter))) return 'Contains a letter outside the hive';
+      if (!answers.has(word)) return 'Not in the word list';
+      if (found.has(word)) return 'Already found';
+      return '';
+    }
+
+    function renderHive() {
+      const hive = document.getElementById('hive');
+      hive.replaceChildren();
+      [puzzle.centerLetter, ...outerLetters].forEach((letter, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'hive-cell' + (index === 0 ? ' center' : '');
+        button.textContent = letter;
+        button.setAttribute('aria-label', letter.toUpperCase() + (index === 0 ? ', required center letter' : ''));
+        button.addEventListener('click', () => {
+          input.value += letter;
+          message.textContent = '';
+        });
+        hive.append(button);
+      });
+    }
+
+    function renderProgress() {
+      const score = [...found].reduce((sum, word) => sum + scoreWord(word), 0);
+      const ranks = [[0, 'Beginner'], [.02, 'Good start'], [.05, 'Moving up'], [.08, 'Good'], [.15, 'Solid'], [.25, 'Nice'], [.4, 'Great'], [.5, 'Amazing'], [.7, 'Genius'], [1, 'Queen Bee']];
+      document.getElementById('rank').textContent = ranks.filter(([fraction]) => score >= Math.ceil(total * fraction)).at(-1)[1];
+      document.getElementById('score').textContent = score;
+      document.getElementById('progress').max = total;
+      document.getElementById('progress').value = score;
+      document.getElementById('target').textContent = Math.ceil(total * .7) + ' points to Genius · ' + total + ' points possible';
+      document.getElementById('word-count').textContent = 'You have found ' + found.size + (found.size === 1 ? ' word' : ' words') + ' of ' + answers.size;
+      document.getElementById('empty').hidden = found.size > 0;
+      const list = document.getElementById('found');
+      list.replaceChildren();
+      [...found].sort().forEach(word => {
+        const item = document.createElement('li');
+        item.textContent = word;
+        if (pangrams.has(word)) { item.className = 'pangram'; item.title = 'Pangram'; }
+        list.append(item);
+      });
+    }
+
+    document.getElementById('date').textContent = new Date(puzzle.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      if (!Array.isArray(saved)) throw new Error('Invalid saved progress');
+      saved.filter(word => answers.has(word)).forEach(word => found.add(word));
+    } catch {}
+
+    document.getElementById('word-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const word = input.value.trim().toLowerCase();
+      const error = checkWord(word);
+      if (error) { message.textContent = error; return; }
+      found.add(word);
+      message.textContent = (pangrams.has(word) ? 'Pangram! ' : 'Nice! ') + '+' + scoreWord(word);
+      input.value = '';
+      renderProgress();
+      try {
+        localStorage.setItem(storageKey, JSON.stringify([...found]));
+      } catch {}
+    });
+    document.getElementById('delete').addEventListener('click', () => { input.value = input.value.slice(0, -1); message.textContent = ''; });
+    document.getElementById('shuffle').addEventListener('click', () => {
+      for (let i = outerLetters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [outerLetters[i], outerLetters[j]] = [outerLetters[j], outerLetters[i]];
+      }
+      renderHive();
+    });
+    document.addEventListener('keydown', event => {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
+      if (event.key === 'Escape') { input.value = ''; message.textContent = ''; return; }
+      if (event.target === input || event.target.closest('summary')) return;
+      if (/^[a-z]$/i.test(event.key)) { event.preventDefault(); input.value += event.key.toLowerCase(); message.textContent = ''; }
+      else if (event.key === 'Backspace') { event.preventDefault(); input.value = input.value.slice(0, -1); }
+      else if (event.key === 'Enter' && event.target === document.body) { event.preventDefault(); document.getElementById('word-form').requestSubmit(); }
+    });
+    renderHive();
+    renderProgress();
+  </script>
+</body>
+</html>
